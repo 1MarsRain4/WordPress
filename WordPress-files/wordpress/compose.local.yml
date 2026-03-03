@@ -1,0 +1,87 @@
+services:
+  caddy:
+    image: caddy:latest
+    container_name: blog_caddy_local
+    restart: always
+    ports:
+      - "80:80"
+      # 本地模式不需要 443
+    volumes:
+      - ./Caddyfile.local:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - wp_data:/var/www/html
+    environment:
+      - DOMAIN_NAME=localhost
+    networks:
+      - blog_net
+    depends_on:
+      - wordpress
+
+  db:
+    image: mariadb:10.6
+    container_name: blog_db_local
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - blog_net
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:alpine
+    container_name: blog_redis_local
+    restart: always
+    networks:
+      - blog_net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  wordpress:
+    image: wordpress:php8.2-fpm-alpine
+    container_name: blog_wp_local
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_REDIS_HOST', 'redis');
+    volumes:
+      - wp_data:/var/www/html
+    networks:
+      - blog_net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "ps aux | grep 'php-fpm: master process' || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_data:
+  wp_data:
+
+
+networks:
+  blog_net:
+    driver: bridge

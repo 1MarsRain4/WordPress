@@ -1,0 +1,16 @@
+:80 {
+    # 本地开发模式 - HTTP
+    # 移除 HSTS 等生产环境强制安全策略，方便虚拟机调试
+
+    # 启用 Gzip/Zstd 压缩
+    encode gzip zstd
+
+    # WordPress 路径
+    root * /var/www/html
+    php_fastcgi wordpress:9000
+    file_server
+
+    log {
+        output stdout
+    }
+}
