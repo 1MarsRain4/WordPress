@@ -1,0 +1,42 @@
+{
+    metrics
+    admin 0.0.0.0:2019
+    # 如果以后想改 metrics 监听地址，可以在这里写：
+    # metrics {
+    #     listen :2019   # 默认就是 :2019，但可以改端口
+    # }
+}
+
+{$DOMAIN_NAME} {
+    # 增强安全响应头 (Security Headers)
+    header {
+        # 防止点击劫持
+        X-Frame-Options "SAMEORIGIN"
+        # 防止 MIME 类型嗅探
+        X-Content-Type-Options "nosniff"
+        # 启用 XSS 过滤器
+        X-XSS-Protection "1; mode=block"
+        # 强制 HTTPS (HSTS) - 包含子域名，预加载
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    # 启用 Gzip/Zstd 压缩
+    encode gzip zstd
+
+    # 关于 PHP-FPM 的处理说明:
+    # 通常有两种方式:
+    # 1. WP 容器运行 Apache/Nginx (标准镜像) -> Caddy 代理 HTTP 请求。
+    # 2. WP 容器运行 PHP-FPM -> Caddy 服务静态文件并转发 PHP 请求。
+    
+    # 为了保持架构 "轻量化 (Lightweight)"，我们选用了 'wordpress:php8.2-fpm-alpine' 镜像。
+    # 该镜像内不包含 Web 服务器，因此必须由 Caddy 处理 PHP FastCGI 连接。
+    
+    root * /var/www/html
+    php_fastcgi wordpress:9000
+    file_server
+
+    # 日志输出到标准输出 (方便 Docker 收集)
+    log {
+        output stdout
+    }
+}

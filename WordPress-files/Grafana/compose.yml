@@ -1,0 +1,149 @@
+services:
+  # Caddy: 反向代理与 HTTPS 管理器
+  # 自动处理 SSL 终结并将流量转发给 WordPress
+  caddy:
+    image: caddy:latest
+    container_name: blog_caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 支持
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+      - wp_data:/var/www/html
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    networks:
+      - blog_net
+    healthcheck:
+      test: [ "CMD", "caddy", "version" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - wordpress
+
+  # DB: 数据库
+  # 使用 MariaDB 作为 MySQL 的稳健开源替代品
+  db:
+    image: mariadb:10.6
+    container_name: blog_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - blog_net
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis: 缓存服务
+  # 用于对象缓存，加速 WordPress 响应
+  redis:
+    image: redis:alpine
+    container_name: blog_redis
+    restart: always
+    networks:
+      - blog_net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # WordPress: 应用程序
+  wordpress:
+    image: wordpress:php8.2-fpm-alpine # 使用 FPM 版本配合外部 Web 服务器 (Caddy) 以获得更好性能
+    container_name: blog_wp
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_REDIS_HOST', 'redis');
+    volumes:
+      - wp_data:/var/www/html
+    networks:
+      - blog_net
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # 由于 alpine 自带工具较少，我们通过检查 php-fpm 进程是否存在来进行简单的健康探测
+      test: [ "CMD-SHELL", "ps aux | grep 'php-fpm: master process' || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+prometheus:
+    image: prom/prometheus:v2.55.0   # 或 latest
+    container_name: blog_prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - blog_net
+    ports:
+      - "9090:9090"   # 调试用，可选暴露到宿主机
+
+  grafana:
+    image: grafana/grafana:11.6.0   # 或 latest，2026 年建议用 11.x
+    container_name: blog_grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      #- GF_SECURITY_ADMIN_USER=————————————————————这里设置管理员用户名，默认为 admin
+      #- GF_SECURITY_ADMIN_PASSWORD=———————————————————————————这里设置管理员密码，记得随便设置一个强密码
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - blog_net
+    depends_on:
+      - prometheus
+
+# 可选：容器资源监控（CPU/内存/网络IO）
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: blog_cadvisor
+    restart: always
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - blog_net        
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_data:
+  wp_data:
+  prometheus_data:
+  grafana_data:
+
+
+networks:
+  blog_net:
+    driver: bridge
+
