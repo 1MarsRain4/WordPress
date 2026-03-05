@@ -1,85 +1,14 @@
-<div class="gif-sidebar-widget">
-  
-  <div class="gif-container">
-    <img id="sidebar-gif" 
-         src="https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif"
-         alt="side gif"
-         style="width:100%; height:auto; display:block;">
-  </div>
+<div class="gif-sidebar-widget" style="background: transparent; border: none; padding: 0; margin: 0 0 20px 0; text-align: center;">
 
-  <div class="gif-change-area">
-    <input type="text" id="gif-link-input" 
-           placeholder="粘贴新 GIF 链接" 
-           style="width:100%; padding:6px; font-size:13px; margin-top:8px;">
-    <button onclick="changeGif()" 
-            style="margin-top:6px; padding:5px 12px; font-size:13px;">
-      更换
-    </button>
-  </div>
+  <!-- 只展示GIF，链接由你手动写死在这里 -->
+  <img src="https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif"
+       alt="sidebar gif"
+       style="width: 100%; max-width: 320px; height: auto; display: block; border-radius: 8px; 
+              box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+
+  <!-- 可选：加个很淡的小标题或说明（可删除） -->
+  <!-- <div style="font-size: 12px; color: #aaa; margin-top: 6px; opacity: 0.7;">
+    今日摸鱼表情包
+  </div> -->
+
 </div>
-
-<style>
-.gif-sidebar-widget {
-  width: 100%;
-  max-width: 320px;
-  background: #111;
-  color: #eee;
-  border-radius: 8px;
-  padding: 12px;
-  box-sizing: border-box;
-  border: 1px solid #333;
-  margin: 0 auto 20px;
-  font-family: system-ui, sans-serif;
-}
-
-.gif-title {
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  text-align: center;
-  color: #bbb;
-}
-
-.gif-container {
-  background: #000;
-  border-radius: 6px;
-  overflow: hidden;
-  line-height: 0;
-}
-
-.gif-change-area {
-  margin-top: 10px;
-  text-align: center;
-}
-
-#gif-link-input {
-  border: 1px solid #444;
-  background: #1a1a1a;
-  color: #ddd;
-  border-radius: 4px;
-}
-
-#gif-link-input:focus {
-  outline: none;
-  border-color: #777;
-}
-</style>
-
-<script>
-function changeGif() {
-  const input = document.getElementById('gif-link-input');
-  const img = document.getElementById('sidebar-gif');
-  const url = input.value.trim();
-  
-  if (url && url.startsWith('http')) {
-    img.src = url;
-    img.onerror = () => {
-      img.src = 'https://via.placeholder.com/300x200/222/aaa?text=加载失败';
-    };
-  } else if (url) {
-    alert('请输入有效的 https 链接');
-  }
-}
-</script>
-
-# 免责声明：请确保您使用的 GIF 链接合法且符合版权要求。本站不对任何因使用此功能而产生的版权问题负责。
